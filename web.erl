@@ -3,15 +3,18 @@
 
 start(Port) ->
     %% `{active, false}` - we want to receive data as results of a function call
-    spawn(fun() -> {ok, Sock} = gen_tcp:listen(Port, [{active, false}]),
-                    loop(Sock) end).
+    Pid = spawn_link(fun() -> 
+                    {ok, Socket} = gen_tcp:listen(Port, [{active, false}, binary]),
+                    spawn(fun() -> loop(Socket) end),
+                    timer:sleep(infinity)
+    end),
+    {ok, Pid}.
 
-loop(Sock) ->
+loop(Socket) ->
     %% `accept(ListenSocket) -> {ok, Socket} | {error, Reason}`
-    {ok, Conn} = gen_tcp:accept(Sock),
-    Handler = spawn(fun() -> handle(Conn) end),
-    gen_tcp:controlling_process(Conn, Handler),
-    loop(Sock).
+    {ok, Conn} = gen_tcp:accept(Socket),
+    spawn(fun() -> loop(Socket) end),
+    handle(Conn).
 
 handle(Conn) ->
     gen_tcp:send(Conn, response("Hello, World")),
